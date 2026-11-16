@@ -11,7 +11,12 @@ import Layout from '../layouts/Layout.astro';
 			</header>
 
 			<div class="login-card">
-				<button class="google-button" type="button" aria-label="Continuar con Google">
+				<button
+					class="google-button"
+					id="google-sign-in"
+					type="button"
+					aria-label="Continuar con Google"
+				>
 					<svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
 						<path
 							fill="#4285F4"
@@ -30,12 +35,110 @@ import Layout from '../layouts/Layout.astro';
 							d="M24 12c3 0 5.7 1 7.8 3.1l5.9-5.9C34.1 5.8 29.5 4 24 4 16.1 4 9.2 8.4 5.8 15l7 5.2C14.4 15.5 18.8 12 24 12Z"
 						/>
 					</svg>
-					<span>Continuar con Google</span>
+					<span id="google-button-label">Continuar con Google</span>
 				</button>
+				<p class="auth-status" id="auth-status" role="status" aria-live="polite"></p>
 			</div>
 		</section>
 	</main>
 </Layout>
+
+<script>
+	import { FirebaseError } from 'firebase/app';
+	import {
+		browserLocalPersistence,
+		GoogleAuthProvider,
+		onAuthStateChanged,
+		setPersistence,
+		signInWithPopup,
+	} from 'firebase/auth';
+	import { FirebaseConfigError, getFirebaseAuth } from '../lib/firebase';
+
+	const signInButton = document.querySelector<HTMLButtonElement>('#google-sign-in');
+	const signInLabel = document.querySelector<HTMLSpanElement>('#google-button-label');
+	const authStatus = document.querySelector<HTMLParagraphElement>('#auth-status');
+
+	if (!signInButton || !signInLabel || !authStatus) {
+		throw new Error('No se encontraron los controles de inicio de sesión.');
+	}
+
+	function setStatus(message: string, isError = false) {
+		authStatus.textContent = message;
+		authStatus.dataset.state = isError ? 'error' : 'info';
+	}
+
+	function showAuthError(error: unknown) {
+		if (error instanceof FirebaseConfigError) {
+			setStatus(error.message, true);
+			return;
+		}
+
+		if (error instanceof FirebaseError) {
+			switch (error.code) {
+				case 'auth/popup-closed-by-user':
+					setStatus('Se cerró la ventana de Google antes de completar el acceso.', true);
+					return;
+				case 'auth/popup-blocked':
+					setStatus('El navegador bloqueó la ventana emergente de Google.', true);
+					return;
+				case 'auth/unauthorized-domain':
+					setStatus('Agrega localhost a los dominios autorizados en Firebase Authentication.', true);
+					return;
+				case 'auth/operation-not-allowed':
+					setStatus('Habilita el proveedor Google en Firebase Authentication.', true);
+					return;
+				case 'auth/network-request-failed':
+					setStatus('No se pudo conectar. Verifica tu conexión e inténtalo de nuevo.', true);
+					return;
+			}
+		}
+
+		console.error('No se pudo iniciar sesión con Google.', error);
+		setStatus('No se pudo iniciar sesión con Google. Inténtalo de nuevo.', true);
+	}
+
+	try {
+		const auth = getFirebaseAuth();
+		let navigating = false;
+
+		function openDemo() {
+			if (navigating) {
+				return;
+			}
+			navigating = true;
+			window.location.replace('/export');
+		}
+
+		onAuthStateChanged(
+			auth,
+			(user) => {
+				if (user) {
+					openDemo();
+				}
+			},
+			showAuthError,
+		);
+
+		signInButton.addEventListener('click', async () => {
+			signInButton.disabled = true;
+			signInLabel.textContent = 'Conectando con Google...';
+			setStatus('Se abrirá la ventana de inicio de sesión de Google.');
+
+			try {
+				await setPersistence(auth, browserLocalPersistence);
+				await signInWithPopup(auth, new GoogleAuthProvider());
+				openDemo();
+			} catch (error) {
+				showAuthError(error);
+				signInButton.disabled = false;
+				signInLabel.textContent = 'Continuar con Google';
+			}
+		});
+	} catch (error) {
+		showAuthError(error);
+		signInButton.disabled = true;
+	}
+</script>
 
 <style>
 	.page-shell {
@@ -110,9 +213,31 @@ import Layout from '../layouts/Layout.astro';
 		box-shadow: 0 3px 10px rgb(34 55 80 / 6%);
 	}
 
+	.google-button:disabled {
+		cursor: wait;
+		opacity: 0.65;
+	}
+
 	.google-button:focus-visible {
 		outline: 3px solid rgb(40 118 191 / 35%);
 		outline-offset: 3px;
+	}
+
+	.auth-status {
+		margin: 20px 0 0;
+		color: #596b80;
+		font-size: 13px;
+		line-height: 1.5;
+		text-align: center;
+		overflow-wrap: anywhere;
+	}
+
+	.auth-status:empty {
+		display: none;
+	}
+
+	.auth-status[data-state='error'] {
+		color: #a44232;
 	}
 
 	.google-mark {

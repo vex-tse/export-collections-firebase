@@ -1,0 +1,362 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+	title="Demostración | Firebase Collections"
+	description="Vista de demostración del exportador de colecciones."
+>
+	<div class="session-status" id="session-status" role="status" aria-live="polite">
+		Verificando tu sesión de Google...
+	</div>
+
+	<main class="page-shell" id="demo-page" hidden>
+		<div class="workspace">
+			<header class="topbar">
+				<div class="brand">
+					<span class="brand-mark" aria-hidden="true">F</span>
+					<span>Firebase Collections</span>
+					<span class="demo-badge">DEMO</span>
+				</div>
+				<div class="user-session">
+					<span class="user-email" id="user-email"></span>
+					<button class="sign-out-button" id="sign-out" type="button">Cerrar sesión</button>
+				</div>
+			</header>
+
+			<section class="page-heading" aria-labelledby="page-title">
+				<p class="eyebrow">VISTA DE DEMOSTRACIÓN</p>
+				<h1 id="page-title">Exportar colecciones</h1>
+				<p class="subtitle">
+					Explora la interfaz de ejemplo. Esta demostración no lee ni modifica datos de Firestore.
+				</p>
+			</section>
+
+			<section class="export-card" aria-label="Opciones de demostración">
+				<div class="field-grid">
+					<div class="field">
+						<label for="database">Base de datos</label>
+						<select id="database" name="database">
+							<option value="" selected disabled>Selecciona una base de datos</option>
+							<option value="primary">Base principal (demo)</option>
+							<option value="test">Base de pruebas (demo)</option>
+						</select>
+					</div>
+
+					<div class="field">
+						<label for="collection">Colección</label>
+						<select id="collection" name="collection">
+							<option value="" selected disabled>Selecciona una colección</option>
+							<option value="Personas">Personas</option>
+							<option value="Productos">Productos</option>
+							<option value="Pedidos">Pedidos</option>
+						</select>
+					</div>
+
+					<div class="field">
+						<label for="time-range">Lapso de tiempo</label>
+						<select id="time-range" name="time-range">
+							<option value="" selected disabled>Selecciona un período</option>
+							<option value="all">Todo el historial</option>
+							<option value="7-days">Últimos 7 días</option>
+							<option value="30-days">Últimos 30 días</option>
+							<option value="custom">Período personalizado</option>
+						</select>
+					</div>
+
+					<div class="field">
+						<label for="file-format">Formato del archivo</label>
+						<select id="file-format" name="file-format">
+							<option value="" selected disabled>Selecciona un formato</option>
+							<option value="csv">CSV (.csv)</option>
+							<option value="json">JSON (.json)</option>
+							<option value="excel">Excel (.xlsx)</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="card-footer">
+					<p class="sample-note">Opciones de ejemplo; no se genera ningún archivo.</p>
+					<button class="export-button" id="demo-export" type="button">Probar demostración</button>
+				</div>
+				<p class="demo-feedback" id="demo-feedback" role="status" aria-live="polite"></p>
+			</section>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	import { onAuthStateChanged, signOut } from 'firebase/auth';
+	import { FirebaseConfigError, getFirebaseAuth } from '../lib/firebase';
+
+	const demoPage = document.querySelector<HTMLElement>('#demo-page');
+	const sessionStatus = document.querySelector<HTMLDivElement>('#session-status');
+	const userEmail = document.querySelector<HTMLSpanElement>('#user-email');
+	const signOutButton = document.querySelector<HTMLButtonElement>('#sign-out');
+	const demoExportButton = document.querySelector<HTMLButtonElement>('#demo-export');
+	const demoFeedback = document.querySelector<HTMLParagraphElement>('#demo-feedback');
+
+	if (!demoPage || !sessionStatus || !userEmail || !signOutButton || !demoExportButton || !demoFeedback) {
+		throw new Error('No se encontraron los controles de la página de demostración.');
+	}
+
+	try {
+		const auth = getFirebaseAuth();
+
+		onAuthStateChanged(
+			auth,
+			(user) => {
+				if (!user) {
+					window.location.replace('/');
+					return;
+				}
+
+				userEmail.textContent = user.displayName
+					? `${user.displayName} · ${user.email ?? ''}`
+					: user.email ?? 'Cuenta Google';
+				sessionStatus.hidden = true;
+				demoPage.hidden = false;
+			},
+			(error) => {
+				console.error('No se pudo comprobar la sesión de demostración.', error);
+				sessionStatus.textContent = 'No se pudo comprobar tu sesión. Vuelve a iniciar sesión.';
+			},
+		);
+
+		signOutButton.addEventListener('click', async () => {
+			signOutButton.disabled = true;
+			try {
+				await signOut(auth);
+				window.location.replace('/');
+			} catch (error) {
+				console.error('No se pudo cerrar la sesión de Google.', error);
+				sessionStatus.textContent = 'No se pudo cerrar la sesión. Inténtalo de nuevo.';
+				sessionStatus.hidden = false;
+				signOutButton.disabled = false;
+			}
+		});
+	} catch (error) {
+		console.error('No se pudo inicializar Firebase Authentication.', error);
+		sessionStatus.textContent =
+			error instanceof FirebaseConfigError
+				? error.message
+				: 'No se pudo inicializar la sesión de demostración.';
+	}
+
+	demoExportButton.addEventListener('click', () => {
+		demoFeedback.textContent = 'La demostración está activa; todavía no se consultan datos ni se exportan archivos.';
+	});
+</script>
+
+<style>
+	[hidden] {
+		display: none !important;
+	}
+
+	.session-status {
+		display: grid;
+		min-height: 100vh;
+		place-items: center;
+		padding: 24px;
+		color: #596b80;
+		font-size: 14px;
+		text-align: center;
+	}
+
+	.page-shell {
+		min-height: 100vh;
+		padding: 32px 20px 56px;
+	}
+
+	.workspace {
+		width: min(100%, 980px);
+		margin: 0 auto;
+	}
+
+	.topbar,
+	.brand,
+	.user-session {
+		display: flex;
+		align-items: center;
+	}
+
+	.topbar {
+		justify-content: space-between;
+		gap: 16px;
+	}
+
+	.brand {
+		gap: 10px;
+		color: #17243b;
+		font-size: 14px;
+		font-weight: 700;
+	}
+
+	.brand-mark {
+		display: grid;
+		width: 34px;
+		height: 34px;
+		place-items: center;
+		border-radius: 9px;
+		background: #e7f2ff;
+		color: #1768b5;
+	}
+
+	.demo-badge {
+		padding: 4px 8px;
+		border-radius: 999px;
+		background: #fff3d6;
+		color: #845b00;
+		font-size: 10px;
+		letter-spacing: 0.08em;
+	}
+
+	.user-session {
+		gap: 14px;
+	}
+
+	.user-email {
+		color: #718095;
+		font-size: 12px;
+		overflow-wrap: anywhere;
+	}
+
+	.sign-out-button,
+	.export-button {
+		min-height: 42px;
+		padding: 0 14px;
+		border-radius: 8px;
+		cursor: pointer;
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.sign-out-button {
+		border: 1px solid #d6dee8;
+		background: white;
+		color: #536d86;
+	}
+
+	.page-heading {
+		margin: 64px 0 28px;
+	}
+
+	.eyebrow {
+		margin: 0 0 10px;
+		color: #52789b;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.13em;
+	}
+
+	h1 {
+		margin: 0;
+		color: #1b2b40;
+		font-size: clamp(30px, 5vw, 42px);
+		letter-spacing: -0.05em;
+	}
+
+	.subtitle {
+		max-width: 650px;
+		margin: 12px 0 0;
+		color: #718095;
+		font-size: 14px;
+		line-height: 1.6;
+	}
+
+	.export-card {
+		padding: clamp(22px, 5vw, 40px);
+		border: 1px solid #e4eaf1;
+		border-radius: 18px;
+		background: #fff;
+		box-shadow: 0 18px 50px rgb(34 55 80 / 7%);
+	}
+
+	.field-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 22px;
+	}
+
+	.field label {
+		display: block;
+		margin-bottom: 8px;
+		color: #34445a;
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.field select {
+		width: 100%;
+		min-height: 48px;
+		padding: 0 12px;
+		border: 1px solid #d6dee8;
+		border-radius: 8px;
+		background: white;
+		color: #405269;
+		font: inherit;
+		font-size: 14px;
+	}
+
+	.card-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin-top: 30px;
+		padding-top: 22px;
+		border-top: 1px solid #edf1f5;
+	}
+
+	.sample-note,
+	.demo-feedback {
+		margin: 0;
+		color: #8997a7;
+		font-size: 12px;
+		line-height: 1.5;
+	}
+
+	.export-button {
+		border: 0;
+		background: #1768b5;
+		color: white;
+	}
+
+	.demo-feedback {
+		margin-top: 14px;
+		color: #26734d;
+	}
+
+	.sign-out-button:focus-visible,
+	.export-button:focus-visible,
+	.field select:focus-visible {
+		outline: 3px solid rgb(40 118 191 / 35%);
+		outline-offset: 3px;
+	}
+
+	@media (max-width: 640px) {
+		.topbar,
+		.user-session,
+		.card-footer {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.user-session {
+			align-items: flex-start;
+		}
+
+		.field-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.page-heading {
+			margin-top: 46px;
+		}
+
+		.export-button {
+			width: 100%;
+		}
+	}
+</style>
