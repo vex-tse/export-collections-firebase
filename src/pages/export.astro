@@ -20,6 +20,7 @@ import Layout from '../layouts/Layout.astro';
 				</div>
 				<div class="user-session">
 					<span class="user-email" id="user-email"></span>
+					<span class="user-role-badge" id="user-role" aria-live="polite"></span>
 					<button class="sign-out-button" id="sign-out" type="button">Cerrar sesión</button>
 				</div>
 			</header>
@@ -86,8 +87,9 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-	import { onAuthStateChanged, signOut } from 'firebase/auth';
+	import { onAuthStateChanged } from 'firebase/auth';
 	import { FirebaseConfigError, getFirebaseAuth } from '../lib/firebase';
+	import { ensureAuthorizedGoogleSession, logout } from '../lib/firebase/auth';
 
 	const demoPage = document.querySelector<HTMLElement>('#demo-page');
 	const sessionStatus = document.querySelector<HTMLDivElement>('#session-status');
@@ -100,22 +102,56 @@ import Layout from '../layouts/Layout.astro';
 		throw new Error('No se encontraron los controles de la página de demostración.');
 	}
 
+	function redirectToLogin(message: string) {
+		sessionStatus.textContent = message;
+		sessionStatus.hidden = false;
+		window.history.replaceState(null, '', '/');
+		window.location.replace('/');
+	}
+
 	try {
 		const auth = getFirebaseAuth();
 
 		onAuthStateChanged(
 			auth,
-			(user) => {
+			async (user) => {
 				if (!user) {
 					window.location.replace('/');
 					return;
 				}
 
-				userEmail.textContent = user.displayName
-					? `${user.displayName} · ${user.email ?? ''}`
-					: user.email ?? 'Cuenta Google';
-				sessionStatus.hidden = true;
-				demoPage.hidden = false;
+				try {
+					const authorizedSession = await ensureAuthorizedGoogleSession(user);
+
+					if (!authorizedSession) {
+						await logout();
+						redirectToLogin('Tu acceso fue denegado por seguridad. Redirigiendo al inicio...');
+						return;
+					}
+
+					const role = authorizedSession.role.toUpperCase();
+					userEmail.textContent = user.displayName
+						? `${user.displayName} · ${user.email ?? ''}`
+						: user.email ?? 'Cuenta Google';
+					const roleBadge = document.querySelector<HTMLSpanElement>('#user-role');
+					if (roleBadge) {
+						roleBadge.textContent = role;
+						roleBadge.dataset.role = authorizedSession.role;
+					}
+
+					if (authorizedSession.role === 'viewer') {
+						demoExportButton.disabled = true;
+						demoExportButton.textContent = 'Solo lectura';
+						demoFeedback.textContent = 'Tu rol es viewer: puedes consultar la vista, pero no exportar datos.';
+					}
+
+					sessionStatus.hidden = true;
+					demoPage.hidden = false;
+				} catch (error) {
+					console.error('La sesión no está autorizada.', error);
+					await logout();
+					redirectToLogin('Tu acceso fue denegado por seguridad. Redirigiendo al inicio...');
+				}
 			},
 			(error) => {
 				console.error('No se pudo comprobar la sesión de demostración.', error);
@@ -126,7 +162,7 @@ import Layout from '../layouts/Layout.astro';
 		signOutButton.addEventListener('click', async () => {
 			signOutButton.disabled = true;
 			try {
-				await signOut(auth);
+				await logout();
 				window.location.replace('/');
 			} catch (error) {
 				console.error('No se pudo cerrar la sesión de Google.', error);
@@ -213,6 +249,19 @@ import Layout from '../layouts/Layout.astro';
 
 	.user-session {
 		gap: 14px;
+	}
+
+	.user-role-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 5px 10px;
+		border-radius: 999px;
+		background: #e9f5ff;
+		color: #125fa9;
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.user-email {

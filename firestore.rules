@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /allowusers/{documentId} {
+      allow get, list: if request.auth != null
+        && request.auth.token.email is string
+        && resource.data.email is string
+        && resource.data.email == request.auth.token.email.lower().trim();
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

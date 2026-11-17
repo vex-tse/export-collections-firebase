@@ -45,14 +45,9 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
 	import { FirebaseError } from 'firebase/app';
-	import {
-		browserLocalPersistence,
-		GoogleAuthProvider,
-		onAuthStateChanged,
-		setPersistence,
-		signInWithPopup,
-	} from 'firebase/auth';
+	import { onAuthStateChanged } from 'firebase/auth';
 	import { FirebaseConfigError, getFirebaseAuth } from '../lib/firebase';
+	import { authorizeGoogleUser, loginWithGoogle, logout } from '../lib/firebase/auth';
 
 	const signInButton = document.querySelector<HTMLButtonElement>('#google-sign-in');
 	const signInLabel = document.querySelector<HTMLSpanElement>('#google-button-label');
@@ -65,6 +60,29 @@ import Layout from '../layouts/Layout.astro';
 	function setStatus(message: string, isError = false) {
 		authStatus.textContent = message;
 		authStatus.dataset.state = isError ? 'error' : 'info';
+	}
+
+	function getUnauthorizedMessage(error: unknown) {
+		const message = error instanceof Error ? error.message : '';
+
+		switch (message) {
+			case 'EMAIL_MISSING':
+				return 'No se pudo obtener el correo del usuario autenticado.';
+			case 'EMAIL_UNVERIFIED':
+				return 'Debes verificar tu correo antes de acceder.';
+			case 'USER_NOT_ALLOWED':
+				return 'Usuario no autorizado.';
+			case 'USER_DISABLED':
+				return 'Tu acceso está desactivado por el administrador.';
+			case 'DUPLICATE_ALLOWUSER_RECORD':
+				return 'Existe un conflicto de autorización para este correo.';
+			case 'INVALID_ROLE':
+				return 'Tu rol no está permitido en esta aplicación.';
+			case 'FIRESTORE_ACCESS_ERROR':
+				return 'No se pudo verificar tu autorización en este momento.';
+			default:
+				return 'Tu acceso fue denegado por seguridad.';
+		}
 	}
 
 	function showAuthError(error: unknown) {
@@ -93,6 +111,11 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
+		if (error instanceof Error) {
+			setStatus(getUnauthorizedMessage(error), true);
+			return;
+		}
+
 		console.error('No se pudo iniciar sesión con Google.', error);
 		setStatus('No se pudo iniciar sesión con Google. Inténtalo de nuevo.', true);
 	}
@@ -100,35 +123,47 @@ import Layout from '../layouts/Layout.astro';
 	try {
 		const auth = getFirebaseAuth();
 		let navigating = false;
+		let signInInProgress = false;
 
 		function openDemo() {
 			if (navigating) {
 				return;
 			}
 			navigating = true;
+			window.history.replaceState(null, '', '/export');
 			window.location.replace('/export');
 		}
 
 		onAuthStateChanged(
 			auth,
-			(user) => {
-				if (user) {
+			async (user) => {
+				if (!user || signInInProgress) {
+					return;
+				}
+
+				try {
+					await authorizeGoogleUser(user);
 					openDemo();
+				} catch (error) {
+					await logout();
+					setStatus(getUnauthorizedMessage(error), true);
 				}
 			},
 			showAuthError,
 		);
 
 		signInButton.addEventListener('click', async () => {
+			signInInProgress = true;
 			signInButton.disabled = true;
 			signInLabel.textContent = 'Conectando con Google...';
 			setStatus('Se abrirá la ventana de inicio de sesión de Google.');
 
 			try {
-				await setPersistence(auth, browserLocalPersistence);
-				await signInWithPopup(auth, new GoogleAuthProvider());
+				await loginWithGoogle();
+				signInInProgress = false;
 				openDemo();
 			} catch (error) {
+				signInInProgress = false;
 				showAuthError(error);
 				signInButton.disabled = false;
 				signInLabel.textContent = 'Continuar con Google';
