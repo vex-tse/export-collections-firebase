@@ -25,6 +25,13 @@ ui-debug.log*
 .firebase/
 *-firebase-adminsdk-*.json
 serviceAccount*.json
+.runtimeconfig.json
+
+# Private keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
 
 # macOS
 .DS_Store

@@ -6,11 +6,7 @@ import Layout from '../layouts/Layout.astro';
 	title="Demostración | Firebase Collections"
 	description="Vista de demostración del exportador de colecciones."
 >
-	<div class="session-status" id="session-status" role="status" aria-live="polite">
-		Verificando tu sesión de Google...
-	</div>
-
-	<main class="page-shell" id="demo-page" hidden>
+	<main class="page-shell" id="demo-page" aria-busy="true">
 		<div class="workspace">
 			<header class="topbar">
 				<div class="brand">
@@ -21,9 +17,16 @@ import Layout from '../layouts/Layout.astro';
 				<div class="user-session">
 					<span class="user-email" id="user-email"></span>
 					<span class="user-role-badge" id="user-role" aria-live="polite"></span>
-					<button class="sign-out-button" id="sign-out" type="button">Cerrar sesión</button>
+					<button class="sign-out-button" id="sign-out" type="button" disabled>
+						Cerrar sesión
+					</button>
 				</div>
 			</header>
+
+			<div class="session-loading" id="session-loading" role="status" aria-live="polite">
+				<span class="loading-spinner" aria-hidden="true"></span>
+				<span>Verificando el acceso...</span>
+			</div>
 
 			<section class="page-heading" aria-labelledby="page-title">
 				<p class="eyebrow">VISTA DE DEMOSTRACIÓN</p>
@@ -37,7 +40,7 @@ import Layout from '../layouts/Layout.astro';
 				<div class="field-grid">
 					<div class="field">
 						<label for="database">Base de datos</label>
-						<select id="database" name="database">
+						<select id="database" name="database" disabled>
 							<option value="" selected disabled>Selecciona una base de datos</option>
 							<option value="primary">Base principal (demo)</option>
 							<option value="test">Base de pruebas (demo)</option>
@@ -46,7 +49,7 @@ import Layout from '../layouts/Layout.astro';
 
 					<div class="field">
 						<label for="collection">Colección</label>
-						<select id="collection" name="collection">
+						<select id="collection" name="collection" disabled>
 							<option value="" selected disabled>Selecciona una colección</option>
 							<option value="Personas">Personas</option>
 							<option value="Productos">Productos</option>
@@ -56,7 +59,7 @@ import Layout from '../layouts/Layout.astro';
 
 					<div class="field">
 						<label for="time-range">Lapso de tiempo</label>
-						<select id="time-range" name="time-range">
+						<select id="time-range" name="time-range" disabled>
 							<option value="" selected disabled>Selecciona un período</option>
 							<option value="all">Todo el historial</option>
 							<option value="7-days">Últimos 7 días</option>
@@ -67,7 +70,7 @@ import Layout from '../layouts/Layout.astro';
 
 					<div class="field">
 						<label for="file-format">Formato del archivo</label>
-						<select id="file-format" name="file-format">
+						<select id="file-format" name="file-format" disabled>
 							<option value="" selected disabled>Selecciona un formato</option>
 							<option value="csv">CSV (.csv)</option>
 							<option value="json">JSON (.json)</option>
@@ -78,7 +81,9 @@ import Layout from '../layouts/Layout.astro';
 
 				<div class="card-footer">
 					<p class="sample-note">Opciones de ejemplo; no se genera ningún archivo.</p>
-					<button class="export-button" id="demo-export" type="button">Probar demostración</button>
+					<button class="export-button" id="demo-export" type="button" disabled>
+						Probar demostración
+					</button>
 				</div>
 				<p class="demo-feedback" id="demo-feedback" role="status" aria-live="polite"></p>
 			</section>
@@ -88,24 +93,32 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
 	import { onAuthStateChanged } from 'firebase/auth';
-	import { FirebaseConfigError, getFirebaseAuth } from '../lib/firebase';
+	import { getFirebaseAuth } from '../lib/firebase';
 	import { ensureAuthorizedGoogleSession, logout } from '../lib/firebase/auth';
 
 	const demoPage = document.querySelector<HTMLElement>('#demo-page');
-	const sessionStatus = document.querySelector<HTMLDivElement>('#session-status');
+	const sessionLoading = document.querySelector<HTMLDivElement>('#session-loading');
 	const userEmail = document.querySelector<HTMLSpanElement>('#user-email');
 	const signOutButton = document.querySelector<HTMLButtonElement>('#sign-out');
 	const demoExportButton = document.querySelector<HTMLButtonElement>('#demo-export');
 	const demoFeedback = document.querySelector<HTMLParagraphElement>('#demo-feedback');
 
-	if (!demoPage || !sessionStatus || !userEmail || !signOutButton || !demoExportButton || !demoFeedback) {
+	if (
+		!demoPage ||
+		!sessionLoading ||
+		!userEmail ||
+		!signOutButton ||
+		!demoExportButton ||
+		!demoFeedback
+	) {
 		throw new Error('No se encontraron los controles de la página de demostración.');
 	}
 
-	function redirectToLogin(message: string) {
-		sessionStatus.textContent = message;
-		sessionStatus.hidden = false;
-		window.history.replaceState(null, '', '/');
+	const formControls = demoPage.querySelectorAll<HTMLButtonElement | HTMLSelectElement>(
+		'button, select',
+	);
+
+	function redirectToLogin() {
 		window.location.replace('/');
 	}
 
@@ -145,17 +158,26 @@ import Layout from '../layouts/Layout.astro';
 						demoFeedback.textContent = 'Tu rol es viewer: puedes consultar la vista, pero no exportar datos.';
 					}
 
-					sessionStatus.hidden = true;
-					demoPage.hidden = false;
+					for (const control of formControls) {
+						if (control !== demoExportButton || authorizedSession.role !== 'viewer') {
+							control.disabled = false;
+						}
+					}
+					sessionLoading.hidden = true;
+					demoPage.setAttribute('aria-busy', 'false');
 				} catch (error) {
 					console.error('La sesión no está autorizada.', error);
-					await logout();
-					redirectToLogin('Tu acceso fue denegado por seguridad. Redirigiendo al inicio...');
+					try {
+						await logout();
+					} catch (logoutError) {
+						console.error('No se pudo cerrar la sesión no autorizada.', logoutError);
+					}
+					redirectToLogin();
 				}
 			},
 			(error) => {
 				console.error('No se pudo comprobar la sesión de demostración.', error);
-				sessionStatus.textContent = 'No se pudo comprobar tu sesión. Vuelve a iniciar sesión.';
+				redirectToLogin();
 			},
 		);
 
@@ -166,17 +188,12 @@ import Layout from '../layouts/Layout.astro';
 				window.location.replace('/');
 			} catch (error) {
 				console.error('No se pudo cerrar la sesión de Google.', error);
-				sessionStatus.textContent = 'No se pudo cerrar la sesión. Inténtalo de nuevo.';
-				sessionStatus.hidden = false;
 				signOutButton.disabled = false;
 			}
 		});
 	} catch (error) {
 		console.error('No se pudo inicializar Firebase Authentication.', error);
-		sessionStatus.textContent =
-			error instanceof FirebaseConfigError
-				? error.message
-				: 'No se pudo inicializar la sesión de demostración.';
+		redirectToLogin();
 	}
 
 	demoExportButton.addEventListener('click', () => {
@@ -189,14 +206,36 @@ import Layout from '../layouts/Layout.astro';
 		display: none !important;
 	}
 
-	.session-status {
-		display: grid;
-		min-height: 100vh;
-		place-items: center;
-		padding: 24px;
+	.session-loading {
+		display: flex;
+		min-height: 42px;
+		align-items: center;
+		gap: 10px;
+		margin-top: 20px;
 		color: #596b80;
 		font-size: 14px;
-		text-align: center;
+	}
+
+	.loading-spinner {
+		width: 18px;
+		height: 18px;
+		flex: 0 0 auto;
+		border: 2px solid #d6dee8;
+		border-top-color: #1768b5;
+		border-radius: 50%;
+		animation: spin 750ms linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.loading-spinner {
+			animation: none;
+		}
 	}
 
 	.page-shell {

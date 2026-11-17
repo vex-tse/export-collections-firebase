@@ -37,7 +37,6 @@ import Layout from '../layouts/Layout.astro';
 					</svg>
 					<span id="google-button-label">Continuar con Google</span>
 				</button>
-				<p class="auth-status" id="auth-status" role="status" aria-live="polite"></p>
 			</div>
 		</section>
 	</main>
@@ -51,73 +50,23 @@ import Layout from '../layouts/Layout.astro';
 
 	const signInButton = document.querySelector<HTMLButtonElement>('#google-sign-in');
 	const signInLabel = document.querySelector<HTMLSpanElement>('#google-button-label');
-	const authStatus = document.querySelector<HTMLParagraphElement>('#auth-status');
 
-	if (!signInButton || !signInLabel || !authStatus) {
+	if (!signInButton || !signInLabel) {
 		throw new Error('No se encontraron los controles de inicio de sesión.');
 	}
 
-	function setStatus(message: string, isError = false) {
-		authStatus.textContent = message;
-		authStatus.dataset.state = isError ? 'error' : 'info';
-	}
-
-	function getUnauthorizedMessage(error: unknown) {
-		const message = error instanceof Error ? error.message : '';
-
-		switch (message) {
-			case 'EMAIL_MISSING':
-				return 'No se pudo obtener el correo del usuario autenticado.';
-			case 'EMAIL_UNVERIFIED':
-				return 'Debes verificar tu correo antes de acceder.';
-			case 'USER_NOT_ALLOWED':
-				return 'Usuario no autorizado.';
-			case 'USER_DISABLED':
-				return 'Tu acceso está desactivado por el administrador.';
-			case 'DUPLICATE_ALLOWUSER_RECORD':
-				return 'Existe un conflicto de autorización para esta cuenta.';
-			case 'INVALID_ROLE':
-				return 'Tu rol no está permitido en esta aplicación.';
-			case 'FIRESTORE_ACCESS_ERROR':
-				return 'No se pudo verificar tu autorización en este momento.';
-			default:
-				return 'Tu acceso fue denegado por seguridad.';
-		}
-	}
-
-	function showAuthError(error: unknown) {
+	function logAuthError(error: unknown) {
 		if (error instanceof FirebaseConfigError) {
-			setStatus(error.message, true);
+			console.error('No se pudo configurar Firebase Authentication.', error);
 			return;
 		}
 
 		if (error instanceof FirebaseError) {
-			switch (error.code) {
-				case 'auth/popup-closed-by-user':
-					setStatus('Se cerró la ventana de Google antes de completar el acceso.', true);
-					return;
-				case 'auth/popup-blocked':
-					setStatus('El navegador bloqueó la ventana emergente de Google.', true);
-					return;
-				case 'auth/unauthorized-domain':
-					setStatus('Agrega localhost a los dominios autorizados en Firebase Authentication.', true);
-					return;
-				case 'auth/operation-not-allowed':
-					setStatus('Habilita el proveedor Google en Firebase Authentication.', true);
-					return;
-				case 'auth/network-request-failed':
-					setStatus('No se pudo conectar. Verifica tu conexión e inténtalo de nuevo.', true);
-					return;
-			}
-		}
-
-		if (error instanceof Error) {
-			setStatus(getUnauthorizedMessage(error), true);
+			console.error('No se pudo iniciar sesión con Google.', error.code, error);
 			return;
 		}
 
 		console.error('No se pudo iniciar sesión con Google.', error);
-		setStatus('No se pudo iniciar sesión con Google. Inténtalo de nuevo.', true);
 	}
 
 	try {
@@ -145,18 +94,21 @@ import Layout from '../layouts/Layout.astro';
 					await authorizeGoogleUser(user);
 					openDemo();
 				} catch (error) {
-					await logout();
-					setStatus(getUnauthorizedMessage(error), true);
+					logAuthError(error);
+					try {
+						await logout();
+					} catch (logoutError) {
+						console.error('No se pudo cerrar la sesión no autorizada.', logoutError);
+					}
 				}
 			},
-			showAuthError,
+			logAuthError,
 		);
 
 		signInButton.addEventListener('click', async () => {
 			signInInProgress = true;
 			signInButton.disabled = true;
 			signInLabel.textContent = 'Conectando con Google...';
-			setStatus('Se abrirá la ventana de inicio de sesión de Google.');
 
 			try {
 				await loginWithGoogle();
@@ -164,13 +116,13 @@ import Layout from '../layouts/Layout.astro';
 				openDemo();
 			} catch (error) {
 				signInInProgress = false;
-				showAuthError(error);
+				logAuthError(error);
 				signInButton.disabled = false;
 				signInLabel.textContent = 'Continuar con Google';
 			}
 		});
 	} catch (error) {
-		showAuthError(error);
+		logAuthError(error);
 		signInButton.disabled = true;
 	}
 </script>
@@ -256,23 +208,6 @@ import Layout from '../layouts/Layout.astro';
 	.google-button:focus-visible {
 		outline: 3px solid rgb(40 118 191 / 35%);
 		outline-offset: 3px;
-	}
-
-	.auth-status {
-		margin: 20px 0 0;
-		color: #596b80;
-		font-size: 13px;
-		line-height: 1.5;
-		text-align: center;
-		overflow-wrap: anywhere;
-	}
-
-	.auth-status:empty {
-		display: none;
-	}
-
-	.auth-status[data-state='error'] {
-		color: #a44232;
 	}
 
 	.google-mark {
