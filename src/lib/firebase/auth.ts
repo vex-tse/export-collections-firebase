@@ -20,10 +20,6 @@ import { auth, db } from "./config";
 
 const validRoles = new Set(["admin", "editor", "viewer"]);
 
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
-}
-
 export async function authorizeGoogleUser(user: User) {
   if (!user.email) {
     throw new Error("EMAIL_MISSING");
@@ -33,11 +29,10 @@ export async function authorizeGoogleUser(user: User) {
     throw new Error("EMAIL_UNVERIFIED");
   }
 
-  const normalizedEmail = normalizeEmail(user.email);
   const usersRef = collection(db, "allowusers");
   const userQuery = query(
     usersRef,
-    where("email", "==", normalizedEmail),
+    where("uid", "==", user.uid),
     limit(2),
   );
 
@@ -72,7 +67,7 @@ export async function authorizeGoogleUser(user: User) {
 
   return {
     uid: user.uid,
-    email: normalizedEmail,
+    email: user.email,
     role,
     authorized: true,
   };
