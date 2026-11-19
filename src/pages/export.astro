@@ -324,6 +324,16 @@ import Layout from '../layouts/Layout.astro';
 		border: 1px solid #d6dee8;
 		background: white;
 		color: #536d86;
+		transition:
+			border-color 150ms ease,
+			background 150ms ease,
+			color 150ms ease;
+	}
+
+	.sign-out-button:not(:disabled):hover {
+		border-color: #b7c5d5;
+		background: #f9fbfd;
+		color: #34445a;
 	}
 
 	.page-heading {
@@ -385,6 +395,14 @@ import Layout from '../layouts/Layout.astro';
 		color: #405269;
 		font: inherit;
 		font-size: 14px;
+		cursor: pointer;
+		transition:
+			border-color 150ms ease,
+			box-shadow 150ms ease;
+	}
+
+	.field select:not(:disabled):hover {
+		border-color: #b7c5d5;
 	}
 
 	.card-footer {
@@ -409,6 +427,22 @@ import Layout from '../layouts/Layout.astro';
 		border: 0;
 		background: #1768b5;
 		color: white;
+		transition:
+			background 150ms ease,
+			box-shadow 150ms ease,
+			transform 150ms ease;
+	}
+
+	.export-button:not(:disabled):hover {
+		background: #125996;
+		box-shadow: 0 6px 16px rgb(23 104 181 / 18%);
+		transform: translateY(-1px);
+	}
+
+	.export-button:disabled {
+		background: #e3e9ef;
+		color: #788697;
+		cursor: not-allowed;
 	}
 
 	.demo-feedback {
