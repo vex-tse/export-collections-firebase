@@ -85,6 +85,7 @@ import Layout from '../layouts/Layout.astro';
 
 	function showAuthNotification(reason: AuthFailureReason) {
 		authNotificationMessage.textContent = authFailureMessages[reason];
+		authNotification.dataset.variant = reason;
 		authNotification.hidden = false;
 	}
 
@@ -248,10 +249,40 @@ import Layout from '../layouts/Layout.astro';
 		align-items: center;
 		gap: 12px;
 		padding: 12px 14px;
-		border: 1px solid #f1c5c2;
+		border: 1px solid var(--notification-border);
 		border-radius: 10px;
-		background: #fff5f4;
-		color: #8c2822;
+		background: var(--notification-background);
+		color: var(--notification-color);
+		--notification-border: #d7dce2;
+		--notification-background: #f5f6f7;
+		--notification-color: #4b5563;
+		--notification-icon-background: #e5e7eb;
+		--notification-icon-color: #4b5563;
+	}
+
+	.auth-notification[data-variant='cancelled'] {
+		--notification-border: #d7dce2;
+		--notification-background: #f5f6f7;
+		--notification-color: #4b5563;
+		--notification-icon-background: #e5e7eb;
+		--notification-icon-color: #4b5563;
+	}
+
+	.auth-notification[data-variant='unauthorized'] {
+		--notification-border: #bfdbfe;
+		--notification-background: #eff6ff;
+		--notification-color: #1d4ed8;
+		--notification-icon-background: #dbeafe;
+		--notification-icon-color: #1d4ed8;
+	}
+
+	.auth-notification[data-variant='verification-failed'],
+	.auth-notification[data-variant='sign-in-failed'] {
+		--notification-border: #f1c5c2;
+		--notification-background: #fff5f4;
+		--notification-color: #8c2822;
+		--notification-icon-background: #fbe1df;
+		--notification-icon-color: #a52c25;
 	}
 
 	.auth-notification[hidden] {
@@ -265,8 +296,8 @@ import Layout from '../layouts/Layout.astro';
 		flex: 0 0 auto;
 		place-items: center;
 		border-radius: 50%;
-		background: #fbe1df;
-		color: #a52c25;
+		background: var(--notification-icon-background);
+		color: var(--notification-icon-color);
 		font-size: 19px;
 		font-weight: 700;
 		line-height: 1;
