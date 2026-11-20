@@ -17,7 +17,7 @@ import {
   limit,
 } from "firebase/firestore";
 
-import { auth, db } from "./config";
+import { getFirebaseAuth, getFirebaseFirestore } from "./config";
 
 const validRoles = new Set(["admin", "editor", "viewer"]);
 const authorizationErrors = new Set([
@@ -46,12 +46,15 @@ export type AuthFailureReason =
   | "verification-failed"
   | "sign-in-failed";
 
-export function isAuthFailureReason(value: string | null): value is AuthFailureReason {
+export type AuthNoticeReason = AuthFailureReason | "configuration-missing";
+
+export function isAuthNoticeReason(value: string | null): value is AuthNoticeReason {
   return (
     value === "unauthorized" ||
     value === "cancelled" ||
     value === "verification-failed" ||
-    value === "sign-in-failed"
+    value === "sign-in-failed" ||
+    value === "configuration-missing"
   );
 }
 
@@ -89,7 +92,7 @@ export async function authorizeGoogleUser(user: User) {
     throw new Error("EMAIL_UNVERIFIED");
   }
 
-  const usersRef = collection(db, "allowusers");
+  const usersRef = collection(getFirebaseFirestore(), "allowusers");
   const userQuery = query(
     usersRef,
     where("uid", "==", user.uid),
@@ -134,6 +137,7 @@ export async function authorizeGoogleUser(user: User) {
 }
 
 export async function loginWithGoogle() {
+  const auth = getFirebaseAuth();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
 
@@ -150,6 +154,7 @@ export async function loginWithGoogle() {
 }
 
 export async function logout() {
+  const auth = getFirebaseAuth();
   if (auth.currentUser) {
     await signOut(auth);
   }

@@ -46,16 +46,23 @@ npm install
 
 ### 2. Configurar Firebase
 
-Crea un archivo `.env` en la raíz del proyecto:
+Copia `.env.example` como `.env` en la raíz del proyecto y completa los valores
+desde la configuración de la aplicación web en Firebase:
 
 ```dotenv
-PUBLIC_FIREBASE_API_KEY=<API_KEY>
-PUBLIC_FIREBASE_AUTH_DOMAIN=<AUTH_DOMAIN>
-PUBLIC_FIREBASE_PROJECT_ID=<PROJECT_ID>
-PUBLIC_FIREBASE_APP_ID=<APP_ID>
+PUBLIC_FIREBASE_API_KEY=
+PUBLIC_FIREBASE_AUTH_DOMAIN=
+PUBLIC_FIREBASE_PROJECT_ID=
+PUBLIC_FIREBASE_APP_ID=
 ```
 
-Estas variables deben pertenecer a la aplicación web configurada en Firebase. Las variables públicas no sustituyen las reglas de seguridad ni las credenciales privadas.
+Se requieren las cuatro variables. Si falta alguna, el botón de inicio de sesión
+permanece deshabilitado y la página muestra un aviso de configuración.
+
+Estas variables deben pertenecer a la aplicación web configurada en Firebase.
+Aunque la configuración web es pública, no publiques archivos `.env`; tampoco
+incluyas credenciales privadas o de administrador. Las variables públicas no
+sustituyen las reglas de seguridad.
 
 ### 3. Configurar Google Authentication
 
@@ -68,9 +75,9 @@ En Firebase Authentication:
 
 La aplicación consulta exactamente un documento en `allowusers` que cumpla estas condiciones:
 
-- `uid` coincide con el UID del usuario autenticado.
-- `active` es `true`.
-- `role` contiene `admin`, `editor` o `viewer`.
+- `uid` es un `string` igual al UID del usuario autenticado en Firebase Authentication.
+- `active` es un `boolean` con valor `true`.
+- `role` es uno de estos valores: `admin`, `editor` o `viewer`.
 - El correo de Google está verificado.
 
 Ejemplo representativo:
@@ -84,6 +91,11 @@ Ejemplo representativo:
 ```
 
 No se incluyen valores reales de usuarios o credenciales.
+
+La colección `allowusers` se administra fuera de esta aplicación, por ejemplo
+desde Firebase Console o herramientas administrativas confiables. Las reglas
+prohíben que el cliente cree, actualice o elimine esos documentos; la app solo
+consulta el documento del usuario autenticado.
 
 ### 5. Ejecutar el proyecto
 
@@ -122,19 +134,23 @@ npm run preview
 
 El archivo [firestore.rules](./firestore.rules) permite que un usuario autenticado lea el documento de `allowusers` cuyo campo `uid` coincida con su propia identidad. La creación, modificación y eliminación desde el cliente están prohibidas.
 
-Para publicar las reglas:
+Tener el archivo en este repositorio no significa que ya esté activo en Firebase.
+Para publicar las reglas en el proyecto seleccionado con Firebase CLI:
 
 ```bash
 firebase deploy --only firestore:rules
 ```
 
-El proyecto debe estar asociado previamente al proyecto de Firebase correspondiente.
+El proyecto debe estar asociado previamente al proyecto de Firebase correcto.
+Después del despliegue, comprueba en Firebase Console que estas reglas estén
+activas y que Firestore ya no esté en modo de prueba.
 
 ## Arquitectura
 
 - `src/pages/index.astro` presenta el inicio de sesión.
 - `src/pages/export.astro` verifica la sesión y muestra la interfaz demostrativa.
-- `src/lib/firebase.ts` crea o reutiliza la aplicación de Firebase y obtiene Firebase Authentication.
+- `src/lib/firebase/config.ts` valida la configuración e inicializa Firebase de forma diferida.
+- `src/lib/firebase.ts` reexporta la API de configuración de Firebase.
 - `src/lib/firebase/auth.ts` inicia sesión y valida el usuario contra `allowusers`.
 - `firestore.rules` controla el acceso a los documentos de autorización.
 
@@ -158,8 +174,6 @@ flowchart LR
 
 ## Pruebas y calidad
 
-El archivo [tests/authorization-policy.test.ts](./tests/authorization-policy.test.ts) existe, pero está vacío.
-
 El proyecto no configura actualmente un framework de pruebas ni scripts npm para:
 
 - pruebas;
@@ -176,7 +190,10 @@ npm run build
 
 ### Falta una variable de Firebase
 
-Confirma que `.env` contiene `PUBLIC_FIREBASE_API_KEY`, `PUBLIC_FIREBASE_AUTH_DOMAIN`, `PUBLIC_FIREBASE_PROJECT_ID` y `PUBLIC_FIREBASE_APP_ID`.
+Confirma que `.env` contiene `PUBLIC_FIREBASE_API_KEY`,
+`PUBLIC_FIREBASE_AUTH_DOMAIN`, `PUBLIC_FIREBASE_PROJECT_ID` y
+`PUBLIC_FIREBASE_APP_ID`. Si falta una variable, la página muestra un aviso y
+mantiene deshabilitado el botón de inicio de sesión.
 
 ### El usuario no puede iniciar sesión
 

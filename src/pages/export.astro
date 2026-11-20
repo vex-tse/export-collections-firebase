@@ -93,12 +93,12 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
 	import { onAuthStateChanged } from 'firebase/auth';
-	import { getFirebaseAuth } from '../lib/firebase';
+	import { FirebaseConfigError, getFirebaseAuth } from '../lib/firebase';
 	import {
 		authorizeGoogleUser,
 		getAuthFailureReason,
+		type AuthNoticeReason,
 		logout,
-		type AuthFailureReason,
 	} from '../lib/firebase/auth';
 
 	const demoPage = document.querySelector<HTMLElement>('#demo-page');
@@ -123,7 +123,16 @@ import Layout from '../layouts/Layout.astro';
 		'button, select',
 	);
 
-	function redirectToLogin(reason?: AuthFailureReason) {
+	function getAuthNotificationReason(
+		error: unknown,
+		context: 'authorization' | 'sign-in' = 'authorization',
+	): AuthNoticeReason {
+		return error instanceof FirebaseConfigError
+			? 'configuration-missing'
+			: getAuthFailureReason(error, context);
+	}
+
+	function redirectToLogin(reason?: AuthNoticeReason) {
 		const loginUrl = new URL('/', window.location.origin);
 		if (reason) {
 			loginUrl.searchParams.set('authError', reason);
@@ -170,7 +179,7 @@ import Layout from '../layouts/Layout.astro';
 					demoPage.setAttribute('aria-busy', 'false');
 				} catch (error) {
 					console.error('No se pudo completar la verificación de autorización.', error);
-					const failureReason = getAuthFailureReason(error, 'authorization');
+					const failureReason = getAuthNotificationReason(error, 'authorization');
 					try {
 						await logout();
 					} catch (logoutError) {
@@ -186,7 +195,7 @@ import Layout from '../layouts/Layout.astro';
 				} catch (logoutError) {
 					console.error('No se pudo cerrar la sesión tras fallar la verificación.', logoutError);
 				}
-				redirectToLogin(getAuthFailureReason(error, 'authorization'));
+				redirectToLogin(getAuthNotificationReason(error, 'authorization'));
 			},
 		);
 
@@ -202,7 +211,7 @@ import Layout from '../layouts/Layout.astro';
 		});
 	} catch (error) {
 		console.error('No se pudo inicializar Firebase Authentication.', error);
-		redirectToLogin(getAuthFailureReason(error, 'authorization'));
+		redirectToLogin(getAuthNotificationReason(error, 'authorization'));
 	}
 
 	demoExportButton.addEventListener('click', () => {

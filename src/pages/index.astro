@@ -2,7 +2,10 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout>
+<Layout
+	title="Iniciar sesión | Firebase Collections"
+	description="Inicia sesión para administrar y exportar tus colecciones de Firebase."
+>
 	<main class="page-shell">
 		<section class="login-panel" aria-labelledby="page-title">
 			<header class="intro">
@@ -16,6 +19,7 @@ import Layout from '../layouts/Layout.astro';
 					id="google-sign-in"
 					type="button"
 					aria-label="Continuar con Google"
+					disabled
 				>
 					<svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
 						<path
@@ -59,10 +63,10 @@ import Layout from '../layouts/Layout.astro';
 	import {
 		authorizeGoogleUser,
 		getAuthFailureReason,
-		isAuthFailureReason,
+		isAuthNoticeReason,
 		loginWithGoogle,
 		logout,
-		type AuthFailureReason,
+		type AuthNoticeReason,
 	} from '../lib/firebase/auth';
 
 	const signInButton = document.querySelector<HTMLButtonElement>('#google-sign-in');
@@ -76,17 +80,28 @@ import Layout from '../layouts/Layout.astro';
 		throw new Error('No se encontraron los controles de inicio de sesión.');
 	}
 
-	const authFailureMessages: Record<AuthFailureReason, string> = {
+	const authFailureMessages: Record<AuthNoticeReason, string> = {
 		unauthorized: 'Tu cuenta no está autorizada para acceder.',
 		cancelled: 'El inicio de sesión se canceló.',
 		'verification-failed': 'No se pudo verificar el acceso. Inténtalo de nuevo.',
 		'sign-in-failed': 'No se pudo iniciar sesión. Inténtalo de nuevo.',
+		'configuration-missing':
+			'Falta la configuración de Firebase. Verifica las variables PUBLIC_FIREBASE_*.',
 	};
 
-	function showAuthNotification(reason: AuthFailureReason) {
+	function showAuthNotification(reason: AuthNoticeReason) {
 		authNotificationMessage.textContent = authFailureMessages[reason];
 		authNotification.dataset.variant = reason;
 		authNotification.hidden = false;
+	}
+
+	function getAuthNotificationReason(
+		error: unknown,
+		context: 'authorization' | 'sign-in' = 'sign-in',
+	): AuthNoticeReason {
+		return error instanceof FirebaseConfigError
+			? 'configuration-missing'
+			: getAuthFailureReason(error, context);
 	}
 
 	function clearAuthNotification() {
@@ -114,7 +129,7 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	const redirectError = new URLSearchParams(window.location.search).get('authError');
-	if (isAuthFailureReason(redirectError)) {
+	if (isAuthNoticeReason(redirectError)) {
 		showAuthNotification(redirectError);
 		const currentUrl = new URL(window.location.href);
 		currentUrl.searchParams.delete('authError');
@@ -127,6 +142,7 @@ import Layout from '../layouts/Layout.astro';
 
 	try {
 		const auth = getFirebaseAuth();
+		signInButton.disabled = false;
 		let navigating = false;
 		let signInInProgress = false;
 
@@ -156,7 +172,7 @@ import Layout from '../layouts/Layout.astro';
 					} catch (logoutError) {
 						console.error('No se pudo cerrar la sesión no autorizada.', logoutError);
 					}
-					showAuthNotification(getAuthFailureReason(error, 'authorization'));
+					showAuthNotification(getAuthNotificationReason(error, 'authorization'));
 				}
 			},
 			async (error) => {
@@ -166,7 +182,7 @@ import Layout from '../layouts/Layout.astro';
 				} catch (logoutError) {
 					console.error('No se pudo cerrar la sesión tras fallar la verificación.', logoutError);
 				}
-				showAuthNotification(getAuthFailureReason(error, 'authorization'));
+				showAuthNotification(getAuthNotificationReason(error, 'authorization'));
 			},
 		);
 
@@ -183,7 +199,7 @@ import Layout from '../layouts/Layout.astro';
 			} catch (error) {
 				signInInProgress = false;
 				logAuthError(error);
-				showAuthNotification(getAuthFailureReason(error));
+				showAuthNotification(getAuthNotificationReason(error));
 				signInButton.disabled = false;
 				signInLabel.textContent = 'Continuar con Google';
 			}
@@ -191,6 +207,7 @@ import Layout from '../layouts/Layout.astro';
 	} catch (error) {
 		logAuthError(error);
 		signInButton.disabled = true;
+		showAuthNotification(getAuthNotificationReason(error, 'authorization'));
 	}
 </script>
 
@@ -268,7 +285,8 @@ import Layout from '../layouts/Layout.astro';
 		--notification-icon-color: #4b5563;
 	}
 
-	.auth-notification[data-variant='unauthorized'] {
+	.auth-notification[data-variant='unauthorized'],
+	.auth-notification[data-variant='configuration-missing'] {
 		--notification-border: #bfdbfe;
 		--notification-background: #eff6ff;
 		--notification-color: #1d4ed8;
