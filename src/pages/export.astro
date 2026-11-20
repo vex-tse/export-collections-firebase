@@ -94,7 +94,12 @@ import Layout from '../layouts/Layout.astro';
 <script>
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { getFirebaseAuth } from '../lib/firebase';
-	import { ensureAuthorizedGoogleSession, logout } from '../lib/firebase/auth';
+	import {
+		authorizeGoogleUser,
+		getAuthFailureReason,
+		logout,
+		type AuthFailureReason,
+	} from '../lib/firebase/auth';
 
 	const demoPage = document.querySelector<HTMLElement>('#demo-page');
 	const sessionLoading = document.querySelector<HTMLDivElement>('#session-loading');
@@ -118,8 +123,12 @@ import Layout from '../layouts/Layout.astro';
 		'button, select',
 	);
 
-	function redirectToLogin() {
-		window.location.replace('/');
+	function redirectToLogin(reason?: AuthFailureReason) {
+		const loginUrl = new URL('/', window.location.origin);
+		if (reason) {
+			loginUrl.searchParams.set('authError', reason);
+		}
+		window.location.replace(loginUrl.toString());
 	}
 
 	try {
@@ -134,13 +143,7 @@ import Layout from '../layouts/Layout.astro';
 				}
 
 				try {
-					const authorizedSession = await ensureAuthorizedGoogleSession(user);
-
-					if (!authorizedSession) {
-						await logout();
-						redirectToLogin('Tu acceso fue denegado por seguridad. Redirigiendo al inicio...');
-						return;
-					}
+					const authorizedSession = await authorizeGoogleUser(user);
 
 					const role = authorizedSession.role.toUpperCase();
 					userEmail.textContent = user.displayName
@@ -166,18 +169,24 @@ import Layout from '../layouts/Layout.astro';
 					sessionLoading.hidden = true;
 					demoPage.setAttribute('aria-busy', 'false');
 				} catch (error) {
-					console.error('La sesión no está autorizada.', error);
+					console.error('No se pudo completar la verificación de autorización.', error);
+					const failureReason = getAuthFailureReason(error, 'authorization');
 					try {
 						await logout();
 					} catch (logoutError) {
 						console.error('No se pudo cerrar la sesión no autorizada.', logoutError);
 					}
-					redirectToLogin();
+					redirectToLogin(failureReason);
 				}
 			},
-			(error) => {
+			async (error) => {
 				console.error('No se pudo comprobar la sesión de demostración.', error);
-				redirectToLogin();
+				try {
+					await logout();
+				} catch (logoutError) {
+					console.error('No se pudo cerrar la sesión tras fallar la verificación.', logoutError);
+				}
+				redirectToLogin(getAuthFailureReason(error, 'authorization'));
 			},
 		);
 
@@ -193,7 +202,7 @@ import Layout from '../layouts/Layout.astro';
 		});
 	} catch (error) {
 		console.error('No se pudo inicializar Firebase Authentication.', error);
-		redirectToLogin();
+		redirectToLogin(getAuthFailureReason(error, 'authorization'));
 	}
 
 	demoExportButton.addEventListener('click', () => {

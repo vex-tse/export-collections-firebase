@@ -7,6 +7,7 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 
 import {
   collection,
@@ -19,6 +20,65 @@ import {
 import { auth, db } from "./config";
 
 const validRoles = new Set(["admin", "editor", "viewer"]);
+const authorizationErrors = new Set([
+  "EMAIL_MISSING",
+  "EMAIL_UNVERIFIED",
+  "USER_NOT_ALLOWED",
+  "DUPLICATE_ALLOWUSER_RECORD",
+  "USER_DISABLED",
+  "INVALID_ROLE",
+]);
+const popupCancellationErrors = new Set([
+  "auth/popup-closed-by-user",
+  "auth/cancelled-popup-request",
+]);
+const networkErrors = new Set([
+  "auth/network-request-failed",
+  "firestore/deadline-exceeded",
+  "firestore/unavailable",
+  "deadline-exceeded",
+  "unavailable",
+]);
+
+export type AuthFailureReason =
+  | "unauthorized"
+  | "cancelled"
+  | "verification-failed"
+  | "sign-in-failed";
+
+export function isAuthFailureReason(value: string | null): value is AuthFailureReason {
+  return (
+    value === "unauthorized" ||
+    value === "cancelled" ||
+    value === "verification-failed" ||
+    value === "sign-in-failed"
+  );
+}
+
+export function getAuthFailureReason(
+  error: unknown,
+  context: "authorization" | "sign-in" = "sign-in",
+): AuthFailureReason {
+  if (error instanceof Error && authorizationErrors.has(error.message)) {
+    return "unauthorized";
+  }
+
+  if (error instanceof Error && error.message === "FIRESTORE_ACCESS_ERROR") {
+    return "verification-failed";
+  }
+
+  if (error instanceof FirebaseError) {
+    if (popupCancellationErrors.has(error.code)) {
+      return "cancelled";
+    }
+
+    if (networkErrors.has(error.code)) {
+      return "verification-failed";
+    }
+  }
+
+  return context === "authorization" ? "verification-failed" : "sign-in-failed";
+}
 
 export async function authorizeGoogleUser(user: User) {
   if (!user.email) {
@@ -71,14 +131,6 @@ export async function authorizeGoogleUser(user: User) {
     role,
     authorized: true,
   };
-}
-
-export async function ensureAuthorizedGoogleSession(user: User | null) {
-  if (!user) {
-    return null;
-  }
-
-  return await authorizeGoogleUser(user);
 }
 
 export async function loginWithGoogle() {
