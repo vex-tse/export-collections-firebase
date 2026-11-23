@@ -39,6 +39,7 @@ serviceAccount*.json
 .vscode/*.local.json
 .vscode/*.local.*
 *.swp
+AGENTS.md
 
 # Operating system files
 .DS_Store

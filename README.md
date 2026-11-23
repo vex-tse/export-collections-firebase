@@ -175,13 +175,17 @@ flowchart LR
 
 ## Pruebas y calidad
 
-El proyecto no configura actualmente un framework de pruebas ni scripts npm para:
+El proyecto no configura actualmente un framework de pruebas ni linting. Para
+revisar los componentes Astro y el código TypeScript ejecuta:
 
-- pruebas;
-- linting;
-- comprobación de tipos independiente.
+```bash
+npx astro check
+```
 
-La compilación disponible es:
+Este comando utiliza `@astrojs/check` y `typescript`, incluidos como dependencias
+de desarrollo del proyecto.
+
+Para generar la compilación de producción:
 
 ```bash
 npm run build

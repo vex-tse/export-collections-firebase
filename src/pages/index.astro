@@ -80,6 +80,9 @@ import Layout from '../layouts/Layout.astro';
 		throw new Error('No se encontraron los controles de inicio de sesión.');
 	}
 
+	const notification = authNotification;
+	const notificationMessage = authNotificationMessage;
+
 	const authFailureMessages: Record<AuthNoticeReason, string> = {
 		unauthorized: 'Tu cuenta no está autorizada para acceder.',
 		cancelled: 'El inicio de sesión se canceló.',
@@ -90,9 +93,9 @@ import Layout from '../layouts/Layout.astro';
 	};
 
 	function showAuthNotification(reason: AuthNoticeReason) {
-		authNotificationMessage.textContent = authFailureMessages[reason];
-		authNotification.dataset.variant = reason;
-		authNotification.hidden = false;
+		notificationMessage.textContent = authFailureMessages[reason];
+		notification.dataset.variant = reason;
+		notification.hidden = false;
 	}
 
 	function getAuthNotificationReason(
@@ -105,8 +108,8 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	function clearAuthNotification() {
-		authNotification.hidden = true;
-		authNotificationMessage.textContent = '';
+		notification.hidden = true;
+		notificationMessage.textContent = '';
 	}
 
 	function logAuthError(error: unknown, context: 'authorization' | 'sign-in' = 'sign-in') {
