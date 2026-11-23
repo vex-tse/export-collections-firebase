@@ -1,46 +1,221 @@
-# Astro Starter Kit: Basics
+# Firebase Collections
 
-```sh
-npm create astro@latest -- --template basics
+Firebase Collections es una demostración web creada con Astro y Firebase para validar el inicio de sesión con Google y el control de acceso por roles.
+
+La aplicación autentica usuarios, consulta el registro de autorización en Firestore y muestra una interfaz de exportación con datos de ejemplo. No consulta colecciones reales ni genera archivos.
+
+## Estado actual
+
+| Estado | Funcionalidad |
+| --- | --- |
+| Implementado | Inicio de sesión con Google y persistencia de sesión |
+| Implementado | Verificación de usuarios mediante la colección `allowusers` |
+| Implementado | Roles `admin`, `editor` y `viewer` |
+| Implementado | Interfaz demostrativa de `/export` |
+| No disponible | Lectura real de colecciones de Firestore |
+| No disponible | Generación o descarga de CSV, JSON o Excel |
+
+La exportación y las selecciones mostradas en la interfaz son capacidades futuras. Actualmente, el botón de demostración no lee ni modifica datos.
+
+## Tecnologías
+
+- Astro 7
+- Firebase JS SDK 13
+- Firebase Authentication con Google
+- Cloud Firestore
+- TypeScript
+- Firebase CLI
+
+## Requisitos
+
+- Node.js 22.23.4 o superior
+- npm
+- Proyecto de Firebase
+- Proveedor Google habilitado en Firebase Authentication
+- Base de datos de Firestore
+
+## Inicio rápido
+
+### 1. Obtener e instalar el proyecto
+
+```bash
+git clone https://github.com/vex-tse/export-collections-firebase.git
+cd export-collections-firebase
+npm install
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+### 2. Configurar Firebase
 
-## 🚀 Project Structure
+Copia `.env.example` como `.env` en la raíz del proyecto y completa los valores
+desde la configuración de la aplicación web en Firebase:
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
+```dotenv
+PUBLIC_FIREBASE_API_KEY=
+PUBLIC_FIREBASE_AUTH_DOMAIN=
+PUBLIC_FIREBASE_PROJECT_ID=
+PUBLIC_FIREBASE_APP_ID=
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+Se requieren las cuatro variables. Si falta alguna, el botón de inicio de sesión
+permanece deshabilitado y la página muestra un aviso de configuración.
 
-## 🧞 Commands
+Estas variables deben pertenecer a la aplicación web configurada en Firebase.
+Aunque la configuración web es pública, no publiques archivos `.env`; tampoco
+incluyas credenciales privadas o de administrador. Las variables públicas no
+sustituyen las reglas de seguridad.
 
-All commands are run from the root of the project, from a terminal:
+### 3. Configurar Google Authentication
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+En Firebase Authentication:
 
-## 👀 Want to learn more?
+1. Habilita el proveedor **Google**.
+2. Autoriza los dominios utilizados por el entorno de desarrollo y los entornos de despliegue.
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+### 4. Crear un usuario autorizado
+
+La aplicación consulta exactamente un documento en `allowusers` que cumpla estas condiciones:
+
+- `uid` es un `string` igual al UID del usuario autenticado en Firebase Authentication.
+- `active` es un `boolean` con valor `true`.
+- `role` es uno de estos valores: `admin`, `editor` o `viewer`.
+- El correo de Google está verificado.
+
+Ejemplo representativo:
+
+```json
+{
+  "uid": "<UID_DE_FIREBASE_AUTH>",
+  "active": true,
+  "role": "admin"
+}
+```
+
+No se incluyen valores reales de usuarios o credenciales.
+
+La colección `allowusers` se administra fuera de esta aplicación, por ejemplo
+desde Firebase Console o herramientas administrativas confiables. Las reglas
+prohíben que el cliente cree, actualice o elimine esos documentos; la app solo
+consulta el documento del usuario autenticado.
+
+### 5. Ejecutar el proyecto
+
+```bash
+npm run dev
+```
+
+Astro inicia normalmente el sitio en `http://localhost:4321`.
+
+```bash
+npm run build
+npm run preview
+```
+
+`npm run build` genera la compilación de producción y `npm run preview` permite previsualizarla localmente.
+
+## Uso
+
+1. Abre la página principal.
+2. Selecciona **Continuar con Google**.
+3. Firebase Authentication verifica el usuario.
+4. La aplicación consulta su documento en `allowusers`.
+5. Si está autorizado, redirige a `/export`.
+6. En la vista demostrativa se muestran el usuario, su rol y las opciones de ejemplo.
+7. Selecciona **Cerrar sesión** para finalizar la sesión.
+
+### Roles
+
+| Rol | Comportamiento actual |
+| --- | --- |
+| `admin` | Accede e interactúa con la vista demostrativa |
+| `editor` | Accede e interactúa con la vista demostrativa |
+| `viewer` | Accede a la vista, pero la acción de exportación se deshabilita |
+
+## Reglas de Firestore
+
+El archivo [firestore.rules](./firestore.rules) permite que un usuario autenticado lea el documento de `allowusers` cuyo campo `uid` coincida con su propia identidad. La creación, modificación y eliminación desde el cliente están prohibidas.
+
+Tener el archivo en este repositorio no significa que ya esté activo en Firebase.
+Para publicar las reglas en el proyecto seleccionado con Firebase CLI:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+El proyecto debe estar asociado previamente al proyecto de Firebase correcto.
+Después del despliegue, comprueba en Firebase Console que estas reglas estén
+activas y que Firestore ya no esté en modo de prueba.
+
+## Arquitectura
+
+- `src/pages/index.astro` presenta el inicio de sesión.
+- `src/pages/export.astro` verifica la sesión y muestra la interfaz demostrativa.
+- `src/lib/firebase/config.ts` valida la configuración e inicializa Firebase de forma diferida.
+- `src/lib/firebase.ts` reexporta la API de configuración de Firebase.
+- `src/lib/firebase/auth.ts` inicia sesión y valida el usuario contra `allowusers`.
+- `firestore.rules` controla el acceso a los documentos de autorización.
+
+Flujo principal:
+
+```mermaid
+flowchart LR
+    Usuario --> Google
+    Google --> Auth[Firebase Authentication]
+    Auth --> Allowusers
+    Allowusers -->|Autorizado| Export[/export]
+    Allowusers -->|No autorizado| Logout[Cerrar sesión]
+```
+
+## Seguridad
+
+- Nunca publiques la configuración privada ni las credenciales de administrador.
+- `/export` es HTML público. La comprobación de la lista blanca se ejecuta en el navegador y solo controla la navegación de esta demostración; no protege los datos.
+- Antes de leer colecciones reales, exige autorización en las reglas de Firestore o en el servidor. Ocultar controles o redirigir desde el cliente no es una medida de protección de datos.
+- Las reglas actuales no permiten escrituras de `allowusers` desde el cliente.
+- El rol mostrado en la interfaz no sustituye las reglas de seguridad.
+
+## Pruebas y calidad
+
+El proyecto no configura actualmente un framework de pruebas ni linting. Para
+revisar los componentes Astro y el código TypeScript ejecuta:
+
+```bash
+npx astro check
+```
+
+Este comando utiliza `@astrojs/check` y `typescript`, incluidos como dependencias
+de desarrollo del proyecto.
+
+Para generar la compilación de producción:
+
+```bash
+npm run build
+```
+
+## Solución de problemas
+
+### Falta una variable de Firebase
+
+Confirma que `.env` contiene `PUBLIC_FIREBASE_API_KEY`,
+`PUBLIC_FIREBASE_AUTH_DOMAIN`, `PUBLIC_FIREBASE_PROJECT_ID` y
+`PUBLIC_FIREBASE_APP_ID`. Si falta una variable, la página muestra un aviso y
+mantiene deshabilitado el botón de inicio de sesión.
+
+### El usuario no puede iniciar sesión
+
+Comprueba que el proveedor Google esté habilitado y que el dominio local o desplegado esté autorizado en Firebase Authentication.
+
+### El usuario aparece como no autorizado
+
+La página diferencia entre un UID que no tiene registro en `allowusers`, una cuenta sin correo válido o registro activo y un registro cuyo rol falta o no es `admin`, `editor` o `viewer`. Comprueba esos datos en el documento de autorización. El rol `viewer` sigue teniendo acceso de solo lectura.
+
+Si se cierra la ventana de Google antes de terminar el proceso, la página muestra un aviso específico y permite volver a intentarlo.
+
+### Firebase CLI no publica las reglas
+
+Comprueba que el proyecto CLI seleccionado sea el correcto y que [firebase.json](./firebase.json) referencie [firestore.rules](./firestore.rules).
+
+## Historial y licencia
+
+Los cambios recientes se documentan en [CHANGELOG.md](./CHANGELOG.md).
+
+No se ha definido una licencia. Hasta que exista una licencia publicada, la distribución o reutilización del proyecto no debe asumirse como permitida.
