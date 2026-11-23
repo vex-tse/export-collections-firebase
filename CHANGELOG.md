@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Login notices distinguish an unregistered UID, an invalid role, other authorization failures, and Google sign-in popup cancellations.
 - Authorization now matches the authenticated Firebase UID against the `uid` field in `allowusers`.
 - Firestore rules allow reads only for the matching authenticated UID and continue to deny client-side writes.
 - Firebase CLI configuration now references `firestore.rules`.

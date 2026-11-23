@@ -206,7 +206,9 @@ Comprueba que el proveedor Google esté habilitado y que el dominio local o desp
 
 ### El usuario aparece como no autorizado
 
-Comprueba que exista exactamente un documento en `allowusers` con el UID correcto, `active: true` y un rol permitido.
+La página diferencia entre un UID que no tiene registro en `allowusers`, una cuenta sin correo válido o registro activo y un registro cuyo rol falta o no es `admin`, `editor` o `viewer`. Comprueba esos datos en el documento de autorización. El rol `viewer` sigue teniendo acceso de solo lectura.
+
+Si se cierra la ventana de Google antes de terminar el proceso, la página muestra un aviso específico y permite volver a intentarlo.
 
 ### Firebase CLI no publica las reglas
 

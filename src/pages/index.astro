@@ -84,8 +84,15 @@ import Layout from '../layouts/Layout.astro';
 	const notificationMessage = authNotificationMessage;
 
 	const authFailureMessages: Record<AuthNoticeReason, string> = {
-		unauthorized: 'Tu cuenta no está autorizada para acceder.',
-		cancelled: 'El inicio de sesión se canceló.',
+		unauthorized:
+			'La cuenta no está autorizada. Verifica que tenga un correo válido y un registro activo.',
+		'user-not-registered':
+			'El UID de esta cuenta no está registrado en la lista de usuarios autorizados.',
+		'role-not-allowed':
+			'La cuenta no tiene un rol válido para acceder. Contacta al administrador.',
+		'popup-closed':
+			'Se cerró o canceló la ventana de Google antes de completar el inicio de sesión.',
+		cancelled: 'La solicitud de inicio de sesión se canceló.',
 		'verification-failed': 'No se pudo verificar el acceso. Inténtalo de nuevo.',
 		'sign-in-failed': 'No se pudo iniciar sesión. Inténtalo de nuevo.',
 		'configuration-missing':
@@ -282,6 +289,7 @@ import Layout from '../layouts/Layout.astro';
 		--notification-icon-color: #4b5563;
 	}
 
+	.auth-notification[data-variant='popup-closed'],
 	.auth-notification[data-variant='cancelled'] {
 		--notification-border: #d7dce2;
 		--notification-background: #f5f6f7;
@@ -291,6 +299,8 @@ import Layout from '../layouts/Layout.astro';
 	}
 
 	.auth-notification[data-variant='unauthorized'],
+	.auth-notification[data-variant='user-not-registered'],
+	.auth-notification[data-variant='role-not-allowed'],
 	.auth-notification[data-variant='configuration-missing'] {
 		--notification-border: #bfdbfe;
 		--notification-background: #eff6ff;
