@@ -168,7 +168,8 @@ flowchart LR
 ## Seguridad
 
 - Nunca publiques la configuración privada ni las credenciales de administrador.
-- Valida los permisos tanto en el cliente como en una implementación servidor antes de habilitar exportaciones reales.
+- `/export` es HTML público. La comprobación de la lista blanca se ejecuta en el navegador y solo controla la navegación de esta demostración; no protege los datos.
+- Antes de leer colecciones reales, exige autorización en las reglas de Firestore o en el servidor. Ocultar controles o redirigir desde el cliente no es una medida de protección de datos.
 - Las reglas actuales no permiten escrituras de `allowusers` desde el cliente.
 - El rol mostrado en la interfaz no sustituye las reglas de seguridad.
 

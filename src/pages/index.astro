@@ -18,7 +18,7 @@ import Layout from '../layouts/Layout.astro';
 					class="google-button"
 					id="google-sign-in"
 					type="button"
-					aria-label="Continuar con Google"
+					aria-label="Iniciar con Google"
 					disabled
 				>
 					<svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
@@ -39,7 +39,7 @@ import Layout from '../layouts/Layout.astro';
 							d="M24 12c3 0 5.7 1 7.8 3.1l5.9-5.9C34.1 5.8 29.5 4 24 4 16.1 4 9.2 8.4 5.8 15l7 5.2C14.4 15.5 18.8 12 24 12Z"
 						/>
 					</svg>
-					<span id="google-button-label">Continuar con Google</span>
+					<span id="google-button-label">Iniciar con Google</span>
 				</button>
 				<div
 					class="auth-notification"
@@ -190,6 +190,7 @@ import Layout from '../layouts/Layout.astro';
 			signInInProgress = true;
 			signInButton.disabled = true;
 			signInLabel.textContent = 'Conectando con Google...';
+			signInButton.setAttribute('aria-label', 'Conectando con Google...');
 			clearAuthNotification();
 
 			try {
@@ -201,7 +202,8 @@ import Layout from '../layouts/Layout.astro';
 				logAuthError(error);
 				showAuthNotification(getAuthNotificationReason(error));
 				signInButton.disabled = false;
-				signInLabel.textContent = 'Continuar con Google';
+				signInLabel.textContent = 'Iniciar con Google';
+				signInButton.setAttribute('aria-label', 'Iniciar con Google');
 			}
 		});
 	} catch (error) {
